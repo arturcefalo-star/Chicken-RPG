@@ -3,7 +3,7 @@ import random
 import time
 
 # Configuração da página
-st.set_page_config(page_title="Chicken Slayer RPG", page_icon="🐔", layout="centered")
+st.set_page_config(page_title="Chicken Slayer RPG", layout="centered")
 
 # --- TABELA DE RARIDADES E NOMES DE ARMAS ---
 WEAPON_NAMES = {
@@ -13,21 +13,14 @@ WEAPON_NAMES = {
     "Lendária": ["Excalibur das Galinhas", "Matadora de Galos", "Foice Celestial", "Desintegrador de Penas"]
 }
 
-RARITY_COLORS = {
-    "Comum": "⚪",
-    "Rara": "🔵",
-    "Épica": "🟣",
-    "Lendária": "🟡"
-}
-
 CHICKEN_SPECIES = [
-    {"name": "Pintinho Amarelinho", "icon": "🐥"},
-    {"name": "Galinha Caipira de Brigas", "icon": "🐔"},
-    {"name": "Galo Cego da Madrugada", "icon": "🐓"},
-    {"name": "Galinha Cibernética", "icon": "🤖🐔"},
-    {"name": "Super Galinha Zumbi", "icon": "🧟🐔"},
-    {"name": "Galo Mutante do Apocalipse", "icon": "🔥🐓"},
-    {"name": "Imperatriz das Galinhas", "icon": "👑🐔"},
+    {"name": "Pintinho Amarelinho"},
+    {"name": "Galinha Caipira de Brigas"},
+    {"name": "Galo Cego da Madrugada"},
+    {"name": "Galinha Cibernética"},
+    {"name": "Super Galinha Zumbi"},
+    {"name": "Galo Mutante do Apocalipse"},
+    {"name": "Imperatriz das Galinhas"},
 ]
 
 # --- INICIALIZAÇÃO DO ESTADO DO JOGO ---
@@ -59,7 +52,8 @@ if "notice_time" not in st.session_state:
 if "is_respawning" not in st.session_state:
     st.session_state.is_respawning = False
 
-DEATH_COOLDOWN = 1.5
+# TEMPO DE COOLDOWN AJUSTADO PARA 0.6 SEGUNDOS
+DEATH_COOLDOWN = 0.6
 
 # --- FUNÇÕES DO JOGO ---
 def set_notice(text):
@@ -106,7 +100,7 @@ def spawn_wave_chicken():
     fixed_atk = 2 + (wave - 1) * 2
     fixed_gold = 5 + (wave - 1) * 4
 
-    name = f"{species_info['icon']} {species_info['name']}"
+    name = species_info['name']
     
     st.session_state.enemy = {
         "name": name,
@@ -131,7 +125,7 @@ def animate_health_bar(progress_container, start_hp, end_hp, max_hp, enemy_atk):
         
         progress_container.progress(
             hp_percent, 
-            text=f"HP da Galinha: {current_hp_display}/{max_hp} | Dano: ⚔️ {enemy_atk}"
+            text=f"HP da Galinha: {current_hp_display}/{max_hp} | Dano: {enemy_atk}"
         )
         time.sleep(0.015)
 
@@ -157,7 +151,6 @@ def attack(progress_container):
         # Testar Drop de Arma (40%)
         if random.random() < 0.40:
             drop = generate_weapon_drop()
-            rar_icon = RARITY_COLORS[drop["rarity"]]
             
             if drop["atk"] > p["weapon_atk"]:
                 p["weapon_atk"] = drop["atk"]
@@ -165,9 +158,9 @@ def attack(progress_container):
                 p["weapon_rarity"] = drop["rarity"]
                 p["weapon_level"] = 0
                 
-                set_notice(f"🎉 **NOVA ARMA EQUIPADA!** Dropou: {rar_icon} **{drop['name']}** (+{drop['atk']} Dano Base)!")
+                set_notice(f"NOVA ARMA EQUIPADA! Dropou: {drop['name']} (+{drop['atk']} Dano Base)!")
             else:
-                set_notice(f"📦 Dropou {rar_icon} {drop['name']} (+{drop['atk']} Dano), mas sua arma atual é mais forte!")
+                set_notice(f"Dropou {drop['name']} (+{drop['atk']} Dano), mas sua arma atual é mais forte!")
 
         target = get_wave_target(st.session_state.wave)
         if st.session_state.kills_in_wave >= target:
@@ -175,7 +168,7 @@ def attack(progress_container):
             st.session_state.kills_in_wave = 0
             p["max_hp"] += 10
             p["hp"] = p["max_hp"]
-            set_notice(f"🚨 **ONDA CONCLUÍDA!** Avançou para a **Onda {st.session_state.wave}**!")
+            set_notice(f"ONDA CONCLUÍDA! Avançou para a Onda {st.session_state.wave}!")
 
         st.session_state.is_respawning = True
         return
@@ -186,29 +179,27 @@ def attack(progress_container):
     if p["hp"] <= 0:
         p["hp"] = p["max_hp"]
         p["gold"] = max(0, p["gold"] - 15)
-        set_notice("☠️ Você foi derrotado! Vida restaurada (-15 moedas).")
+        set_notice("Você foi derrotado! Vida restaurada (-15 moedas).")
 
 # --- INTERFACE GRÁFICA ---
-st.title("🐔 Chicken Slayer RPG")
+st.title("Chicken Slayer RPG")
 
 wave_target = get_wave_target(st.session_state.wave)
 p = st.session_state.player
 
-# PAINEL SUPERIOR COM DESTAQUE DE DINHEIRO/OURO SEPARADO
 col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("Onda", f"🌊 {st.session_state.wave}")
-col2.metric("Abates", f"🎯 {st.session_state.kills_in_wave}/{wave_target}")
-col3.metric("Vida", f"❤️ {p['hp']}/{p['max_hp']}")
-col4.metric("Dano", f"🗡️ {get_player_total_atk()}")
-col5.metric("Ouro", f"💰 {p['gold']}")  # <--- Ouro isolado em lugar próprio!
+col1.metric("Onda", f"{st.session_state.wave}")
+col2.metric("Abates", f"{st.session_state.kills_in_wave}/{wave_target}")
+col3.metric("Vida", f"{p['hp']}/{p['max_hp']}")
+col4.metric("Dano", f"{get_player_total_atk()}")
+col5.metric("Ouro", f"{p['gold']}")
 
-rar_icon = RARITY_COLORS[p['weapon_rarity']]
 lvl_str = f" (+{p['weapon_level']})" if p['weapon_level'] > 0 else ""
-st.caption(f"**Arma Equipada:** {rar_icon} **{p['weapon_name']}**{lvl_str} | Bônus: +{p['weapon_atk'] + (p['weapon_level']*3)} Dano")
+st.caption(f"**Arma Equipada:** {p['weapon_name']}{lvl_str} | Bônus: +{p['weapon_atk'] + (p['weapon_level']*3)} Dano")
 
 st.divider()
 
-tab_battle, tab_upgrades = st.tabs(["⚔️ Batalha da Onda", "🛠️ Melhorias & Cura"])
+tab_battle, tab_upgrades = st.tabs(["Batalha da Onda", "Melhorias e Cura"])
 
 with tab_battle:
     e = st.session_state.enemy
@@ -217,19 +208,19 @@ with tab_battle:
     progress_container = st.empty()
     display_hp = max(0, e["hp"])
     hp_percent = max(0.0, float(display_hp / e["max_hp"]))
-    progress_container.progress(hp_percent, text=f"HP da Galinha: {display_hp}/{e['max_hp']} | Dano: ⚔️ {e['atk']}")
+    progress_container.progress(hp_percent, text=f"HP da Galinha: {display_hp}/{e['max_hp']} | Dano: {e['atk']}")
 
     btn_container = st.empty()
 
     if st.session_state.is_respawning:
-        btn_container.button("⏳ Galinha Derrotada! Invocando próxima...", disabled=True, use_container_width=True)
+        btn_container.button("Aguarde... Invocando próxima galinha...", disabled=True, use_container_width=True)
         time.sleep(DEATH_COOLDOWN)
         
         spawn_wave_chicken()
         st.session_state.is_respawning = False
         st.rerun()
     else:
-        if btn_container.button("🗡️ Atacar Galinha", type="primary", use_container_width=True):
+        if btn_container.button("Atacar Galinha", type="primary", use_container_width=True):
             attack(progress_container)
             st.rerun()
 
@@ -242,7 +233,7 @@ with tab_battle:
             st.session_state.notice_text = None
 
 with tab_upgrades:
-    st.subheader("🛠️ Melhorias & Recuperação")
+    st.subheader("Melhorias e Recuperação")
     
     cost_hp = 20 + (p["max_hp"] - 30) * 2
     cost_weapon = 30 + (p["weapon_level"] * 25)
@@ -252,8 +243,8 @@ with tab_upgrades:
     
     with col_up1:
         st.write(f"**Aumentar Vida Máxima (+15 HP)**")
-        st.write(f"Custo: 💰 {cost_hp} Moedas")
-        if st.button("❤️ Melhorar Vida", use_container_width=True):
+        st.write(f"Custo: {cost_hp} Moedas")
+        if st.button("Melhorar Vida", use_container_width=True):
             if p["gold"] >= cost_hp:
                 p["gold"] -= cost_hp
                 p["max_hp"] += 15
@@ -265,8 +256,8 @@ with tab_upgrades:
 
     with col_up2:
         st.write(f"**Aprimorar Arma (+3 Dano)**")
-        st.write(f"Custo: 💰 {cost_weapon} Moedas")
-        if st.button("⚔️ Melhorar Arma", use_container_width=True):
+        st.write(f"Custo: {cost_weapon} Moedas")
+        if st.button("Melhorar Arma", use_container_width=True):
             if p["gold"] >= cost_weapon:
                 p["gold"] -= cost_weapon
                 p["weapon_level"] += 1
@@ -277,9 +268,9 @@ with tab_upgrades:
 
     st.divider()
     
-    st.write(f"**💤 Curar Toda a Vida**")
-    st.write(f"Custo: 💰 {cost_heal} Moedas")
-    if st.button("🧪 Beber Poção de Cura", use_container_width=True):
+    st.write(f"**Curar Toda a Vida**")
+    st.write(f"Custo: {cost_heal} Moedas")
+    if st.button("Beber Poção de Cura", use_container_width=True):
         if p["gold"] >= cost_heal:
             p["gold"] -= cost_heal
             p["hp"] = p["max_hp"]
