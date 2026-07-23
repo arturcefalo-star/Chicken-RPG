@@ -20,7 +20,7 @@ RARITY_COLORS = {
     "Lendária": "🟡"
 }
 
-CHICKEN_BOSSES = [
+CHICKEN_SPECIES = [
     {"name": "Pintinho Amarelinho", "icon": "🐥"},
     {"name": "Galinha Caipira de Brigas", "icon": "🐔"},
     {"name": "Galo Cego da Madrugada", "icon": "🐓"},
@@ -45,6 +45,7 @@ if "player" not in st.session_state:
 
 if "wave" not in st.session_state:
     st.session_state.wave = 1
+    st.session_state.kills_in_wave = 0
 
 if "enemy" not in st.session_state:
     st.session_state.enemy = None
@@ -53,6 +54,10 @@ if "new_weapon_notice" not in st.session_state:
     st.session_state.new_weapon_notice = None
 
 # --- FUNÇÕES DO JOGO ---
+def get_wave_target(wave):
+    # Onda 1 = 25, Onda 2 = 50, Onda 3 = 75...
+    return wave * 25
+
 def get_player_total_atk():
     p = st.session_state.player
     return p["base_atk"] + p["weapon_atk"] + (p["weapon_level"] * 3)
@@ -61,20 +66,20 @@ def generate_weapon_drop():
     wave = st.session_state.wave
     
     roll = random.random()
-    if roll < (0.08 + wave * 0.02):
+    if roll < (0.05 + wave * 0.015):
         rarity = "Lendária"
         mult = 5
-    elif roll < (0.25 + wave * 0.02):
+    elif roll < (0.20 + wave * 0.02):
         rarity = "Épica"
         mult = 3
-    elif roll < (0.55 + wave * 0.02):
+    elif roll < (0.50 + wave * 0.02):
         rarity = "Rara"
         mult = 2
     else:
         rarity = "Comum"
         mult = 1
 
-    base_bonus = wave * 4
+    base_bonus = wave * 3
     atk = random.randint(2, 5) * mult + base_bonus
     name = random.choice(WEAPON_NAMES[rarity])
     
@@ -83,16 +88,20 @@ def generate_weapon_drop():
 def spawn_wave_chicken():
     wave = st.session_state.wave
     
-    # Define o boss da onda (escala infinitamente se passar dos chefes da lista)
-    boss_idx = min(wave - 1, len(CHICKEN_BOSSES) - 1)
-    boss_info = CHICKEN_BOSSES[boss_idx]
+    # Seleciona a espécie da onda atual
+    species_idx = min(wave - 1, len(CHICKEN_SPECIES) - 1)
+    species_info = CHICKEN_SPECIES[species_idx]
     
-    # Atributos escalam forte a cada onda
-    hp = 20 + (wave - 1) * 35
-    atk = 3 + (wave - 1) * 4
-    gold = 15 + (wave - 1) * 20
+    # Atributos variam um pouco a cada galinha gerada
+    base_hp = 15 + (wave - 1) * 12
+    base_atk = 2 + (wave - 1) * 2
+    base_gold = 4 + (wave - 1) * 4
+
+    hp = max(5, base_hp + random.randint(-2, 4))
+    atk = max(1, base_atk + random.randint(-1, 1))
+    gold = max(1, base_gold + random.randint(-1, 3))
     
-    name = f"{boss_info['icon']} {boss_info['name']} (Onda {wave})"
+    name = f"{species_info['icon']} {species_info['name']}"
     
     st.session_state.enemy = {
         "name": name,
@@ -106,14 +115,14 @@ if st.session_state.enemy is None:
     spawn_wave_chicken()
 
 def attack():
-    time.sleep(0.2)  # Cooldown simples
+    time.sleep(0.15)  # Cooldown suave
     p = st.session_state.player
     e = st.session_state.enemy
 
     if not e:
         return
 
-    # Limpa aviso anterior ao atacar novamente
+    # Limpa aviso anterior ao atacar
     st.session_state.new_weapon_notice = None
 
     # Ataque do Jogador
@@ -121,28 +130,37 @@ def attack():
     damage_to_e = max(1, total_atk + random.randint(-1, 2))
     e["hp"] -= damage_to_e
 
-    # Venceu a Galinha da Onda!
+    # Galinha Derrotada
     if e["hp"] <= 0:
         p["gold"] += e["gold"]
+        st.session_state.kills_in_wave += 1
         
-        # Testar Drop de Arma (70% de chance de rolar drop ao derrotar o chefe da onda)
-        if random.random() < 0.70:
+        # Chance de Drop de Arma (40% por galinha)
+        if random.random() < 0.40:
             drop = generate_weapon_drop()
             rar_icon = RARITY_COLORS[drop["rarity"]]
             
-            # Se a arma for melhor que o dano base atual da arma
             if drop["atk"] > p["weapon_atk"]:
                 p["weapon_atk"] = drop["atk"]
                 p["weapon_name"] = drop["name"]
                 p["weapon_rarity"] = drop["rarity"]
-                p["weapon_level"] = 0  # Reseta o nível da nova arma
+                p["weapon_level"] = 0
                 
-                st.session_state.new_weapon_notice = f"🎉 **NOVA ARMA EQUIPADA!** Você pegou: {rar_icon} **{drop['name']}** (+{drop['atk']} Dano Base)!"
+                st.session_state.new_weapon_notice = f"🎉 **NOVA ARMA EQUIPADA!** Dropou: {rar_icon} **{drop['name']}** (+{drop['atk']} Dano Base)!"
             else:
                 st.session_state.new_weapon_notice = f"📦 A galinha dropou {rar_icon} {drop['name']} (+{drop['atk']} Dano), mas sua arma atual é mais forte!"
 
-        # Avança para a próxima onda
-        st.session_state.wave += 1
+        # Verifica se completou as eliminações da onda
+        target = get_wave_target(st.session_state.wave)
+        if st.session_state.kills_in_wave >= target:
+            st.session_state.wave += 1
+            st.session_state.kills_in_wave = 0
+            
+            # Bônus por concluir a onda
+            p["max_hp"] += 10
+            p["hp"] = p["max_hp"]
+            st.session_state.new_weapon_notice = f"🚨 **ONDA CONCLUÍDA!** Você avançou para a **Onda {st.session_state.wave}**! Sua Vida foi restaurada."
+
         spawn_wave_chicken()
         return
 
@@ -154,23 +172,25 @@ def attack():
     if p["hp"] <= 0:
         p["hp"] = p["max_hp"]
         p["gold"] = max(0, p["gold"] - 15)
-        st.session_state.new_weapon_notice = "☠️ Você perdeu a batalha! Foi restaurado na Hospedaria (-15 moedas)."
+        st.session_state.new_weapon_notice = "☠️ Você foi derrotado! Foi restaurado na Hospedaria (-15 moedas)."
 
 # --- INTERFACE GRÁFICA ---
 st.title("🐔 Chicken Slayer RPG")
 
+wave_target = get_wave_target(st.session_state.wave)
+
 # Painel Superior (Status)
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Onda", f"🌊 {st.session_state.wave}")
-col2.metric("Vida (HP)", f"❤️ {st.session_state.player['hp']}/{st.session_state.player['max_hp']}")
-col3.metric("Ouro", f"💰 {st.session_state.player['gold']}")
+col2.metric("Abates na Onda", f"🎯 {st.session_state.kills_in_wave}/{wave_target}")
+col3.metric("Vida (HP)", f"❤️ {st.session_state.player['hp']}/{st.session_state.player['max_hp']}")
 col4.metric("Dano Total", f"🗡️ {get_player_total_atk()}")
 
 # Status da Arma Atual
 p = st.session_state.player
 rar_icon = RARITY_COLORS[p['weapon_rarity']]
 lvl_str = f" (+{p['weapon_level']})" if p['weapon_level'] > 0 else ""
-st.caption(f"**Arma Atual:** {rar_icon} **{p['weapon_name']}**{lvl_str} | Bônus: +{p['weapon_atk'] + (p['weapon_level']*3)} Dano")
+st.caption(f"**Arma Atual:** {rar_icon} **{p['weapon_name']}**{lvl_str} | Bônus: +{p['weapon_atk'] + (p['weapon_level']*3)} Dano | **Ouro:** 💰 {p['gold']}")
 
 st.divider()
 
@@ -179,11 +199,11 @@ tab_battle, tab_upgrades, tab_inn = st.tabs(["⚔️ Batalha da Onda", "🛠️ 
 
 with tab_battle:
     e = st.session_state.enemy
-    st.subheader(f"Galinha da Onda: {e['name']}")
+    st.subheader(f"Inimigo Atual: {e['name']}")
     
-    # Barra de Vida da Galinha
+    # Barra de Vida da Galinha Atual
     hp_percent = max(0.0, float(e["hp"] / e["max_hp"]))
-    st.progress(hp_percent, text=f"HP da Galinha: {e['hp']}/{e['max_hp']} | Dano dela: ⚔️ {e['atk']}")
+    st.progress(hp_percent, text=f"HP da Galinha: {e['hp']}/{e['max_hp']} | Dano: ⚔️ {e['atk']}")
 
     # Botão de Atacar
     if st.button("🗡️ Atacar Galinha", type="primary", use_container_width=True):
@@ -197,7 +217,6 @@ with tab_battle:
 with tab_upgrades:
     st.subheader("🛠️ Melhorias de Atributos")
     
-    # Custo de upgrades baseado no nível atual
     cost_hp = 20 + (p["max_hp"] - 30) * 2
     cost_weapon = 30 + (p["weapon_level"] * 25)
 
