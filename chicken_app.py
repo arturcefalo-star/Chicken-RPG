@@ -237,10 +237,3 @@ with tab_shop:
             st.rerun()
         else:
             st.error("Ouro insuficiente!")
-
-st.divider()
-
-# Histórico/Log
-st.subheader("📜 Histórico da Batalha")
-for item in st.session_state.log[:6]:
-    st.write(item)
