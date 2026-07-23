@@ -56,7 +56,6 @@ if "new_weapon_notice" not in st.session_state:
 if "last_attack_time" not in st.session_state:
     st.session_state.last_attack_time = 0.0
 
-# TEMPO DE COOLDOWN DO ATAQUE (em segundos)
 ATTACK_COOLDOWN = 1.5
 
 # --- FUNÇÕES DO JOGO ---
@@ -95,22 +94,19 @@ def spawn_wave_chicken():
     species_idx = min(wave - 1, len(CHICKEN_SPECIES) - 1)
     species_info = CHICKEN_SPECIES[species_idx]
     
-    base_hp = 15 + (wave - 1) * 12
-    base_atk = 2 + (wave - 1) * 2
-    base_gold = 4 + (wave - 1) * 4
+    # VIDA FIXA BASEADA ESTRITAMENTE NA ONDA (sem aleatoriedade)
+    fixed_hp = 18 + (wave - 1) * 15
+    fixed_atk = 2 + (wave - 1) * 2
+    fixed_gold = 5 + (wave - 1) * 4
 
-    hp = max(5, base_hp + random.randint(-2, 4))
-    atk = max(1, base_atk + random.randint(-1, 1))
-    gold = max(1, base_gold + random.randint(-1, 3))
-    
     name = f"{species_info['icon']} {species_info['name']}"
     
     st.session_state.enemy = {
         "name": name,
-        "hp": hp,
-        "max_hp": hp,
-        "atk": atk,
-        "gold": gold
+        "hp": fixed_hp,
+        "max_hp": fixed_hp,
+        "atk": fixed_atk,
+        "gold": fixed_gold
     }
 
 if st.session_state.enemy is None:
@@ -119,16 +115,18 @@ if st.session_state.enemy is None:
 def animate_health_bar(progress_container, start_hp, end_hp, max_hp, enemy_atk):
     steps = 10
     start_hp = max(0, start_hp)
-    end_hp = max(0, end_hp)
+    end_hp = max(0, end_hp)  # NUNCA PERMITE VALORES NEGATIVOS
     
     for i in range(steps + 1):
         current_hp = start_hp - ((start_hp - end_hp) * (i / steps))
-        hp_percent = max(0.0, float(current_hp / max_hp))
+        current_hp_display = max(0, int(current_hp))
+        hp_percent = max(0.0, float(current_hp_display / max_hp))
+        
         progress_container.progress(
             hp_percent, 
-            text=f"HP da Galinha: {int(current_hp)}/{max_hp} | Dano: ⚔️ {enemy_atk}"
+            text=f"HP da Galinha: {current_hp_display}/{max_hp} | Dano: ⚔️ {enemy_atk}"
         )
-        time.sleep(0.03)
+        time.sleep(0.02)
 
 def attack(progress_container):
     p = st.session_state.player
@@ -139,18 +137,19 @@ def attack(progress_container):
 
     st.session_state.new_weapon_notice = None
 
-    # Cálculo do Dano
+    # Cálculo de Dano
     total_atk = get_player_total_atk()
     damage_to_e = max(1, total_atk + random.randint(-1, 2))
-    old_hp = e["hp"]
-    e["hp"] -= damage_to_e
+    
+    old_hp = max(0, e["hp"])
+    e["hp"] = max(0, e["hp"] - damage_to_e)  # Garante HP mínimo 0
 
-    # Executa a Animação da Barra
+    # Executa a Animação da Barra caindo sem valores negativos
     animate_health_bar(progress_container, old_hp, e["hp"], e["max_hp"], e["atk"])
 
-    # Se a Galinha Morrer
+    # Se a Galinha Morrer (HP igual a 0)
     if e["hp"] <= 0:
-        time.sleep(0.4)
+        time.sleep(0.3)
         
         p["gold"] += e["gold"]
         st.session_state.kills_in_wave += 1
@@ -182,7 +181,7 @@ def attack(progress_container):
         spawn_wave_chicken()
         return
 
-    # Contra-Ataque da Galinha
+    # Contra-Ataque da Galinha (apenas se ela continuar viva)
     damage_to_p = max(1, e["atk"] + random.randint(-1, 1))
     p["hp"] -= damage_to_p
 
@@ -212,17 +211,17 @@ st.caption(f"**Arma Atual:** {rar_icon} **{p['weapon_name']}**{lvl_str} | Bônus
 
 st.divider()
 
-# Apenas 2 Abas agora (Hospedaria foi removida)
 tab_battle, tab_upgrades = st.tabs(["⚔️ Batalha da Onda", "🛠️ Melhorias & Cura"])
 
 with tab_battle:
     e = st.session_state.enemy
     st.subheader(f"Inimigo Atual: {e['name']}")
     
-    # Barra de Vida Dinâmica
+    # Barra de Vida Dinâmica com Trava Trava de Zero Mínimo
     progress_container = st.empty()
-    hp_percent = max(0.0, float(e["hp"] / e["max_hp"]))
-    progress_container.progress(hp_percent, text=f"HP da Galinha: {e['hp']}/{e['max_hp']} | Dano: ⚔️ {e['atk']}")
+    display_hp = max(0, e["hp"])
+    hp_percent = max(0.0, float(display_hp / e["max_hp"]))
+    progress_container.progress(hp_percent, text=f"HP da Galinha: {display_hp}/{e['max_hp']} | Dano: ⚔️ {e['atk']}")
 
     # --- LÓGICA DE COOLDOWN DO BOTÃO ---
     current_time = time.time()
@@ -232,7 +231,6 @@ with tab_battle:
     btn_container = st.empty()
 
     if remaining_cd > 0:
-        # Se ainda estiver no cooldown, desabilita o botão e mostra o tempo
         btn_container.button(
             f"⏳ Aguarde ({remaining_cd:.1f}s)...", 
             disabled=True, 
@@ -241,7 +239,6 @@ with tab_battle:
         time.sleep(remaining_cd)
         st.rerun()
     else:
-        # Botão liberado para atacar
         if btn_container.button("🗡️ Atacar Galinha", type="primary", use_container_width=True):
             st.session_state.last_attack_time = time.time()
             attack(progress_container)
@@ -291,7 +288,6 @@ with tab_upgrades:
 
     st.divider()
     
-    # Sistema de Cura Integrado
     st.write(f"**💤 Curar Toda a Vida**")
     st.write(f"Custo: 💰 {cost_heal} Moedas")
     if st.button("🧪 Beber Poção de Cura", use_container_width=True):
