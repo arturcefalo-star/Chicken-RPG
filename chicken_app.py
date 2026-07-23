@@ -2,7 +2,7 @@ import streamlit as st
 import random
 
 # Configuração da página
-st.set_page_config(page_title="Chicken RPG", page_icon="🐔", layout="centered")
+st.set_page_config(page_title="Chicken Slayer RPG", page_icon="🐔", layout="centered")
 
 # --- INICIALIZAÇÃO DO ESTADO DO JOGO ---
 if "player" not in st.session_state:
@@ -20,7 +20,7 @@ if "enemy" not in st.session_state:
     st.session_state.enemy = None
 
 if "log" not in st.session_state:
-    st.session_state.log = ["Bem-vindo ao Chicken Slayer! Escolha caçar para encontrar uma galinha."]
+    st.session_state.log = ["Bem-vindo ao Chicken Slayer! Prepare-se para a batalha."]
 
 # --- FUNÇÕES DO JOGO ---
 def log_msg(msg):
@@ -28,12 +28,11 @@ def log_msg(msg):
 
 def spawn_chicken():
     types = [
-        {"name": "Pintinho Amarelinho", "hp": 10, "max_hp": 10, "atk": 2, "gold": 5, "xp": 10},
-        {"name": "Galinha Caipira", "hp": 20, "max_hp": 20, "atk": 4, "gold": 12, "xp": 20},
-        {"name": "Galo Raivoso", "hp": 35, "max_hp": 35, "atk": 7, "gold": 25, "xp": 40},
-        {"name": "Galinha Zumbi", "hp": 60, "max_hp": 60, "atk": 12, "gold": 50, "xp": 80},
+        {"name": "Pintinho Amarelinho", "hp": 10, "max_hp": 10, "atk": 2, "gold": 5},
+        {"name": "Galinha Caipira", "hp": 20, "max_hp": 20, "atk": 4, "gold": 12},
+        {"name": "Galo Raivoso", "hp": 35, "max_hp": 35, "atk": 7, "gold": 25},
+        {"name": "Galinha Zumbi", "hp": 60, "max_hp": 60, "atk": 12, "gold": 50},
     ]
-    # Escolhe a galinha com base no nível do jogador
     max_idx = min(st.session_state.player["level"], len(types)) - 1
     selected = random.choice(types[:max_idx + 1])
     st.session_state.enemy = selected.copy()
@@ -41,13 +40,16 @@ def spawn_chicken():
 
 def check_level_up():
     p = st.session_state.player
-    # A cada 50 de ouro ganho equivalentemente podemos considerar nivel
     if p["chickens_slain"] >= p["level"] * 3:
         p["level"] += 1
         p["max_hp"] += 10
         p["hp"] = p["max_hp"]
         p["atk"] += 2
         log_msg(f"🎉 **SUBIU DE NÍVEL!** Você agora é Nível {p['level']}!")
+
+# Garante que SEMPRE haverá uma galinha em combate se nenhuma existir
+if st.session_state.enemy is None:
+    spawn_chicken()
 
 def attack():
     p = st.session_state.player
@@ -66,8 +68,8 @@ def attack():
         log_msg(f"💥 Você derrotou o {e['name']} e ganhou 💰 {e['gold']} moedas!")
         p["gold"] += e["gold"]
         p["chickens_slain"] += 1
-        st.session_state.enemy = None
         check_level_up()
+        spawn_chicken()  # Surge uma nova galinha imediatamente após a vitória
         return
 
     # Galinha contra-ataca
@@ -77,12 +79,10 @@ def attack():
 
     # Game Over
     if p["hp"] <= 0:
-        p["hp"] = 0
-        log_msg("☠️ **VOCÊ MORREU!** As galinhas dominaram... O jogo foi reiniciado.")
-        # Reset rápido
         p["hp"] = p["max_hp"]
         p["gold"] = max(0, p["gold"] - 10)
-        st.session_state.enemy = None
+        log_msg("☠️ **VOCÊ MORREU!** As galinhas te venceram... Sua vida foi restaurada, mas perdeu 10 moedas.")
+        spawn_chicken()  # Surge uma nova galinha após renascer
 
 # --- INTERFAÇAS DO STREAMLIT ---
 st.title("🐔 Chicken Slayer RPG")
@@ -96,31 +96,26 @@ col4.metric("Ataque", f"🗡️ {st.session_state.player['atk']}")
 
 st.divider()
 
-# Layout Principal: Esquerda (Combate), Direita (Loja/Hospedaria)
-tab_battle, tab_shop = st.tabs(["⚔️ Caça & Combate", "🏪 Loja & Hospedaria"])
+# Layout Principal
+tab_battle, tab_shop = st.tabs(["⚔️ Combate Contínuo", "🏪 Loja & Hospedaria"])
 
 with tab_battle:
-    if st.session_state.enemy is None:
-        st.info("Nenhuma galinha por perto no momento.")
-        if st.button("🔎 Procurar Galinha", use_container_width=True):
-            spawn_chicken()
-            st.rerun()
-    else:
-        e = st.session_state.enemy
-        st.subheader(f"Inimigo: {e['name']}")
-        
-        # Barra de Vida do Inimigo
-        hp_percent = max(0.0, float(e["hp"] / e["max_hp"]))
-        st.progress(hp_percent, text=f"HP da Galinha: {e['hp']}/{e['max_hp']}")
+    e = st.session_state.enemy
+    st.subheader(f"Inimigo Atual: {e['name']}")
+    
+    # Barra de Vida do Inimigo
+    hp_percent = max(0.0, float(e["hp"] / e["max_hp"]))
+    st.progress(hp_percent, text=f"HP da Galinha: {e['hp']}/{e['max_hp']}")
 
-        col_atk, col_run = st.columns(2)
-        if col_atk.button("🗡️ Atacar", type="primary", use_container_width=True):
-            attack()
-            st.rerun()
-        if col_run.button("🏃 Fugir", use_container_width=True):
-            st.session_state.enemy = None
-            log_msg("🏃 Você fugiu da batalha!")
-            st.rerun()
+    col_atk, col_flee = st.columns(2)
+    if col_atk.button("🗡️ Atacar", type="primary", use_container_width=True):
+        attack()
+        st.rerun()
+        
+    if col_flee.button("🏃 Trocar de Galinha", use_container_width=True):
+        log_msg(f"🏃 Você trocou de alvo!")
+        spawn_chicken()  # Substitui a galinha atual por uma nova
+        st.rerun()
 
 with tab_shop:
     st.subheader("🏥 Hospedaria")
@@ -137,7 +132,7 @@ with tab_shop:
     weapons = [
         {"name": "Espada de Ferro", "atk": 10, "cost": 30},
         {"name": "Machado Matador de Galinhas", "atk": 18, "cost": 80},
-        {"name": "Lança-Lança-Chamas", "atk": 30, "cost": 200},
+        {"name": "Lança-Chamas", "atk": 30, "cost": 200},
     ]
 
     for w in weapons:
@@ -157,5 +152,5 @@ st.divider()
 
 # Histórico/Log
 st.subheader("📜 Histórico de Ações")
-for item in st.session_state.log[:5]:  # Mostra as últimas 5 ações
+for item in st.session_state.log[:5]:
     st.write(item)
