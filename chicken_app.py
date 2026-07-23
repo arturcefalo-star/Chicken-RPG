@@ -3,13 +3,13 @@ import random
 import time
 
 # Configuração da página
-st.set_page_config(page_title="Chicken Slayer RPG", layout="centered")
+st.set_page_config(page_title="Chicken Slayer", layout="centered")
 
 # --- TABELA DE RARIDADES E NOMES DE ARMAS ---
 WEAPON_NAMES = {
-    "Comum": ["Galho Seco", "Colher de Madeira", "Faca de Pão", "Espada Quebrada"],
-    "Rara": ["Espada de Ferro", "Machado de Caça", "Clava de Bronze", "Daga Afiada"],
-    "Épica": ["Lança de Aço", "Katana Penada", "Martelo do Trovão", "Lança-Chamas de Bolso"],
+    "Comum": ["Pau", "Faca de Pão", "Espada Quebrada", "Espada de Madeira"],
+    "Rara": ["Espada de Cobre", "Espada de Ferro", "Espada de Ouro", "Espada de Titanium"],
+    "Épica": ["Espada de Diamante", "Espada de Obisidiana", "Katana de Ferro", "Lança-Chamas d"],
     "Lendária": ["Excalibur das Galinhas", "Matadora de Galos", "Foice Celestial", "Desintegrador de Penas"]
 }
 
