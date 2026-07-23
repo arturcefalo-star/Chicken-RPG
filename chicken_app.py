@@ -2,7 +2,7 @@ import streamlit as st
 import random
 
 # Configuração da página
-st.set_page_config(page_title="Chicken Slayer RPG", page_icon="🐔", layout="centered")
+st.set_page_config(page_title="Chicken RPG", page_icon="🐔", layout="centered")
 
 # --- INICIALIZAÇÃO DO ESTADO DO JOGO ---
 if "player" not in st.session_state:
