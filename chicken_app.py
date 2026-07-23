@@ -3,7 +3,7 @@ import random
 import time
 
 # Configuração da página
-st.set_page_config(page_title="Chicken Slayer", layout="centered")
+st.set_page_config(page_title="Chicken RPG", layout="centered")
 
 # --- TABELA DE RARIDADES E NOMES DE ARMAS ---
 WEAPON_NAMES = {
