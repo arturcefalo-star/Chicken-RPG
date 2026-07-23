@@ -53,10 +53,11 @@ if "enemy" not in st.session_state:
 if "new_weapon_notice" not in st.session_state:
     st.session_state.new_weapon_notice = None
 
-if "last_attack_time" not in st.session_state:
-    st.session_state.last_attack_time = 0.0
+if "is_respawning" not in st.session_state:
+    st.session_state.is_respawning = False
 
-ATTACK_COOLDOWN = 1.5
+# TEMPO DE COOLDOWN APENAS PARA A MORTE (em segundos)
+DEATH_COOLDOWN = 1.5
 
 # --- FUNÇÕES DO JOGO ---
 def get_wave_target(wave):
@@ -94,7 +95,7 @@ def spawn_wave_chicken():
     species_idx = min(wave - 1, len(CHICKEN_SPECIES) - 1)
     species_info = CHICKEN_SPECIES[species_idx]
     
-    # HP e Dano Fixos por Onda
+    # HP Fixo por onda
     fixed_hp = 18 + (wave - 1) * 15
     fixed_atk = 2 + (wave - 1) * 2
     fixed_gold = 5 + (wave - 1) * 4
@@ -113,7 +114,7 @@ if st.session_state.enemy is None:
     spawn_wave_chicken()
 
 def animate_health_bar(progress_container, start_hp, end_hp, max_hp, enemy_atk):
-    steps = 10
+    steps = 8
     start_hp = max(0, start_hp)
     end_hp = max(0, end_hp)
     
@@ -126,33 +127,33 @@ def animate_health_bar(progress_container, start_hp, end_hp, max_hp, enemy_atk):
             hp_percent, 
             text=f"HP da Galinha: {current_hp_display}/{max_hp} | Dano: ⚔️ {enemy_atk}"
         )
-        time.sleep(0.02)
+        time.sleep(0.015)
 
 def attack(progress_container):
     p = st.session_state.player
     e = st.session_state.enemy
 
-    if not e:
+    if not e or st.session_state.is_respawning:
         return
 
     st.session_state.new_weapon_notice = None
 
-    # Cálculo de Dano
+    # Dano do Jogador
     total_atk = get_player_total_atk()
     damage_to_e = max(1, total_atk + random.randint(-1, 2))
     
     old_hp = max(0, e["hp"])
     e["hp"] = max(0, e["hp"] - damage_to_e)
 
-    # Animação de queda do HP
+    # Animação da vida caindo
     animate_health_bar(progress_container, old_hp, e["hp"], e["max_hp"], e["atk"])
 
-    # Lógica de Morte e Reset
+    # SE A GALINHA MORRER (HP = 0)
     if e["hp"] <= 0:
         p["gold"] += e["gold"]
         st.session_state.kills_in_wave += 1
         
-        # Testar Drop de Arma (40%)
+        # Chance de Drop de Arma (40%)
         if random.random() < 0.40:
             drop = generate_weapon_drop()
             rar_icon = RARITY_COLORS[drop["rarity"]]
@@ -165,7 +166,7 @@ def attack(progress_container):
                 
                 st.session_state.new_weapon_notice = f"🎉 **NOVA ARMA EQUIPADA!** Dropou: {rar_icon} **{drop['name']}** (+{drop['atk']} Dano Base)!"
             else:
-                st.session_state.new_weapon_notice = f"📦 A galinha dropou {rar_icon} {drop['name']} (+{drop['atk']} Dano), mas sua arma atual é mais forte!"
+                st.session_state.new_weapon_notice = f"📦 Dropou {rar_icon} {drop['name']} (+{drop['atk']} Dano), mas sua arma é melhor!"
 
         # Checa Avanço de Onda
         target = get_wave_target(st.session_state.wave)
@@ -174,16 +175,13 @@ def attack(progress_container):
             st.session_state.kills_in_wave = 0
             p["max_hp"] += 10
             p["hp"] = p["max_hp"]
-            st.session_state.new_weapon_notice = f"🚨 **ONDA CONCLUÍDA!** Avançou para a **Onda {st.session_state.wave}**! Sua Vida foi restaurada."
+            st.session_state.new_weapon_notice = f"🚨 **ONDA CONCLUÍDA!** Avançou para a **Onda {st.session_state.wave}**!"
 
-        # Surge a nova galinha e reseta o HP
-        spawn_wave_chicken()
-        
-        # Sincroniza tempo para ativar o Cooldown imediatamente após o abate
-        st.session_state.last_attack_time = time.time()
+        # MODO RESPAWN COM COOLDOWN ATIVADO
+        st.session_state.is_respawning = True
         return
 
-    # Contra-Ataque (se sobreviveu)
+    # Contra-Ataque da Galinha (se continuou viva)
     damage_to_p = max(1, e["atk"] + random.randint(-1, 1))
     p["hp"] -= damage_to_p
 
@@ -205,7 +203,6 @@ col2.metric("Abates na Onda", f"🎯 {st.session_state.kills_in_wave}/{wave_targ
 col3.metric("Vida (HP)", f"❤️ {st.session_state.player['hp']}/{st.session_state.player['max_hp']}")
 col4.metric("Dano Total", f"🗡️ {get_player_total_atk()}")
 
-# Status da Arma Atual
 p = st.session_state.player
 rar_icon = RARITY_COLORS[p['weapon_rarity']]
 lvl_str = f" (+{p['weapon_level']})" if p['weapon_level'] > 0 else ""
@@ -219,40 +216,32 @@ with tab_battle:
     e = st.session_state.enemy
     st.subheader(f"Inimigo Atual: {e['name']}")
     
-    # Barra de Vida Reseta Instantaneamente no Novo Inimigo
+    # Barra de Vida
     progress_container = st.empty()
     display_hp = max(0, e["hp"])
     hp_percent = max(0.0, float(display_hp / e["max_hp"]))
     progress_container.progress(hp_percent, text=f"HP da Galinha: {display_hp}/{e['max_hp']} | Dano: ⚔️ {e['atk']}")
 
-    # Lógica de Cooldown Unificada
-    current_time = time.time()
-    elapsed = current_time - st.session_state.last_attack_time
-    remaining_cd = ATTACK_COOLDOWN - elapsed
-
     btn_container = st.empty()
 
-    if remaining_cd > 0:
-        btn_container.button(
-            f"⏳ Respawn / Recarga ({remaining_cd:.1f}s)...", 
-            disabled=True, 
-            use_container_width=True
-        )
-        time.sleep(remaining_cd)
+    # SE ESTIVER EM COOLDOWN DE MORTE
+    if st.session_state.is_respawning:
+        btn_container.button("⏳ Galinha Derrotada! Invocando próxima...", disabled=True, use_container_width=True)
+        time.sleep(DEATH_COOLDOWN)
+        
+        # Reseta o Inimigo para 100% de vida e desativa o Cooldown
+        spawn_wave_chicken()
+        st.session_state.is_respawning = False
         st.rerun()
     else:
+        # BOTÃO NORMAL DE ATAQUE (SEM COOLDOWN INTERMEDIÁRIO)
         if btn_container.button("🗡️ Atacar Galinha", type="primary", use_container_width=True):
-            st.session_state.last_attack_time = time.time()
             attack(progress_container)
             st.rerun()
 
     # Aviso de Drops
     if st.session_state.new_weapon_notice:
-        notice_container = st.empty()
-        notice_container.info(st.session_state.new_weapon_notice)
-        time.sleep(5)
-        notice_container.empty()
-        st.session_state.new_weapon_notice = None
+        st.info(st.session_state.new_weapon_notice)
 
 with tab_upgrades:
     st.subheader("🛠️ Melhorias & Recuperação")
