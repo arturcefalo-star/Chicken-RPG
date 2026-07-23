@@ -8,9 +8,9 @@ st.set_page_config(page_title="Chicken Slayer", layout="centered")
 # --- TABELA DE RARIDADES E NOMES DE ARMAS ---
 WEAPON_NAMES = {
     "Comum": ["Pau", "Faca de Pão", "Espada Quebrada", "Espada de Madeira"],
-    "Rara": ["Espada de Cobre", "Espada de Ferro", "Espada de Ouro", "Espada de Titanium"],
-    "Épica": ["Espada de Diamante", "Espada de Obisidiana", "Katana de Ferro", "Lança-Chamas d"],
-    "Lendária": ["Excalibur das Galinhas", "Matadora de Galos", "Foice Celestial", "Desintegrador de Penas"]
+    "Rara": ["Espada de Cobre", "Espada de Ferro", "Espada de Ouro", "Espada de Titânio"],
+    "Épica": ["Espada de Diamante", "Espada de Obisidiana", "Katana de Ferro", "Katana de Titânio"],
+    "Lendária": ["Excalibur", "Foice Divina", "Foice Celestial", "Foice Destruidora de Mundos"]
 }
 
 CHICKEN_SPECIES = [
@@ -188,11 +188,11 @@ wave_target = get_wave_target(st.session_state.wave)
 p = st.session_state.player
 
 col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("Onda", f"{st.session_state.wave}")
+col1.metric("Ondas", f"{st.session_state.wave}")
 col2.metric("Abates", f"{st.session_state.kills_in_wave}/{wave_target}")
-col3.metric("Vida", f"{p['hp']}/{p['max_hp']}")
-col4.metric("Dano", f"{get_player_total_atk()}")
-col5.metric("Ouro", f"{p['gold']}")
+col3.metric("Vida:", f"{p['hp']}/{p['max_hp']}")
+col4.metric("Dano:", f"{get_player_total_atk()}")
+col5.metric("Dinheiro:", f"{p['gold']}")
 
 lvl_str = f" (+{p['weapon_level']})" if p['weapon_level'] > 0 else ""
 st.caption(f"**Arma Equipada:** {p['weapon_name']}{lvl_str} | Bônus: +{p['weapon_atk'] + (p['weapon_level']*3)} Dano")
@@ -213,14 +213,14 @@ with tab_battle:
     btn_container = st.empty()
 
     if st.session_state.is_respawning:
-        btn_container.button("Aguarde... Invocando próxima galinha...", disabled=True, use_container_width=True)
+        btn_container.button("Invocando próxima galinha", disabled=True, use_container_width=True)
         time.sleep(DEATH_COOLDOWN)
         
         spawn_wave_chicken()
         st.session_state.is_respawning = False
         st.rerun()
     else:
-        if btn_container.button("Atacar Galinha", type="primary", use_container_width=True):
+        if btn_container.button("Bater", type="primary", use_container_width=True):
             attack(progress_container)
             st.rerun()
 
@@ -255,26 +255,13 @@ with tab_upgrades:
                 st.error("Ouro insuficiente!")
 
     with col_up2:
-        st.write(f"**Aprimorar Arma (+3 Dano)**")
+        st.write(f"**Melhorar Arma (+3 Dano)**")
         st.write(f"Custo: {cost_weapon} Moedas")
         if st.button("Melhorar Arma", use_container_width=True):
             if p["gold"] >= cost_weapon:
                 p["gold"] -= cost_weapon
                 p["weapon_level"] += 1
-                st.success("Sua arma ficou mais forte!")
+                st.success("Sua arma está melhor!")
                 st.rerun()
             else:
-                st.error("Ouro insuficiente!")
-
-    st.divider()
-    
-    st.write(f"**Curar Toda a Vida**")
-    st.write(f"Custo: {cost_heal} Moedas")
-    if st.button("Beber Poção de Cura", use_container_width=True):
-        if p["gold"] >= cost_heal:
-            p["gold"] -= cost_heal
-            p["hp"] = p["max_hp"]
-            st.success("Sua vida foi totalmente recuperada!")
-            st.rerun()
-        else:
-            st.error("Ouro insuficiente!")
+                st.error("Dinheiro insuficiente!")
