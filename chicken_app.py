@@ -7,10 +7,10 @@ st.set_page_config(page_title="Chicken RPG", layout="centered")
 
 # --- TABELA DE RARIDADES E NOMES DE ARMAS ---
 WEAPON_NAMES = {
-    "Comum": ["Pau", "Faca de Pão", "Espada Quebrada", "Espada de Madeira"],
-    "Rara": ["Espada de Cobre", "Espada de Ferro", "Espada de Ouro", "Espada de Titânio"],
-    "Épica": ["Espada de Diamante", "Espada de Obisidiana", "Katana de Ferro", "Katana de Titânio"],
-    "Lendária": ["Excalibur", "Foice Divina", "Foice Celestial", "Foice Destruidora de Mundos"]
+    "Comum": ["Commum | Pau", "Commum | Faca de Pão", "Commum | Espada Quebrada", "Commum | Espada de Madeira"],
+    "Rara": ["Rara | Espada de Cobre", "Rara | Espada de Ferro", "Rara | Espada de Ouro", "Rara | Espada de Titânio"],
+    "Épica": ["Épica | Espada de Diamante", "Épica | Espada de Obisidiana", "Épica | Katana de Ferro", "Épica | Katana de Titânio"],
+    "Lendária": ["Lendária | Excalibur", "Lendária | Foice Divina", "Lendária | Foice Celestial", "Lendária | Foice Destruidora de Mundos"]
 }
 
 CHICKEN_SPECIES = [
