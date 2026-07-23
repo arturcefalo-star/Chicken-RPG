@@ -55,7 +55,6 @@ if "new_weapon_notice" not in st.session_state:
 
 # --- FUNÇÕES DO JOGO ---
 def get_wave_target(wave):
-    # Onda 1 = 25, Onda 2 = 50, Onda 3 = 75...
     return wave * 25
 
 def get_player_total_atk():
@@ -87,12 +86,9 @@ def generate_weapon_drop():
 
 def spawn_wave_chicken():
     wave = st.session_state.wave
-    
-    # Seleciona a espécie da onda atual
     species_idx = min(wave - 1, len(CHICKEN_SPECIES) - 1)
     species_info = CHICKEN_SPECIES[species_idx]
     
-    # Atributos variam um pouco a cada galinha gerada
     base_hp = 15 + (wave - 1) * 12
     base_atk = 2 + (wave - 1) * 2
     base_gold = 4 + (wave - 1) * 4
@@ -114,28 +110,47 @@ def spawn_wave_chicken():
 if st.session_state.enemy is None:
     spawn_wave_chicken()
 
-def attack():
-    time.sleep(0.15)  # Cooldown suave
+def animate_health_bar(progress_container, start_hp, end_hp, max_hp, enemy_atk):
+    """Anima a barra de vida descendo gradualmente"""
+    steps = 10
+    start_hp = max(0, start_hp)
+    end_hp = max(0, end_hp)
+    
+    for i in range(steps + 1):
+        current_hp = start_hp - ((start_hp - end_hp) * (i / steps))
+        hp_percent = max(0.0, float(current_hp / max_hp))
+        progress_container.progress(
+            hp_percent, 
+            text=f"HP da Galinha: {int(current_hp)}/{max_hp} | Dano: ⚔️ {enemy_atk}"
+        )
+        time.sleep(0.03)  # Velocidade da animação da barra
+
+def attack(progress_container):
     p = st.session_state.player
     e = st.session_state.enemy
 
     if not e:
         return
 
-    # Limpa aviso anterior ao atacar
     st.session_state.new_weapon_notice = None
 
-    # Ataque do Jogador
+    # Cálculo do Dano
     total_atk = get_player_total_atk()
     damage_to_e = max(1, total_atk + random.randint(-1, 2))
+    old_hp = e["hp"]
     e["hp"] -= damage_to_e
 
-    # Galinha Derrotada
+    # Executa a Animação da Barra caindo
+    animate_health_bar(progress_container, old_hp, e["hp"], e["max_hp"], e["atk"])
+
+    # Se a Galinha Morrer
     if e["hp"] <= 0:
+        time.sleep(0.4)  # Cooldown de abate (pausa após a vida zerar)
+        
         p["gold"] += e["gold"]
         st.session_state.kills_in_wave += 1
         
-        # Chance de Drop de Arma (40% por galinha)
+        # Testar Drop de Arma (40% de chance)
         if random.random() < 0.40:
             drop = generate_weapon_drop()
             rar_icon = RARITY_COLORS[drop["rarity"]]
@@ -150,21 +165,19 @@ def attack():
             else:
                 st.session_state.new_weapon_notice = f"📦 A galinha dropou {rar_icon} {drop['name']} (+{drop['atk']} Dano), mas sua arma atual é mais forte!"
 
-        # Verifica se completou as eliminações da onda
+        # Checa mudança de Onda
         target = get_wave_target(st.session_state.wave)
         if st.session_state.kills_in_wave >= target:
             st.session_state.wave += 1
             st.session_state.kills_in_wave = 0
-            
-            # Bônus por concluir a onda
             p["max_hp"] += 10
             p["hp"] = p["max_hp"]
-            st.session_state.new_weapon_notice = f"🚨 **ONDA CONCLUÍDA!** Você avançou para a **Onda {st.session_state.wave}**! Sua Vida foi restaurada."
+            st.session_state.new_weapon_notice = f"🚨 **ONDA CONCLUÍDA!** Avançou para a **Onda {st.session_state.wave}**! Sua Vida foi restaurada."
 
         spawn_wave_chicken()
         return
 
-    # Contra-Ataque da Galinha
+    # Contra-Ataque da Galinha (se sobreviveu)
     damage_to_p = max(1, e["atk"] + random.randint(-1, 1))
     p["hp"] -= damage_to_p
 
@@ -201,18 +214,23 @@ with tab_battle:
     e = st.session_state.enemy
     st.subheader(f"Inimigo Atual: {e['name']}")
     
-    # Barra de Vida da Galinha Atual
+    # Renderiza o container dinâmico para a Barra de Vida
+    progress_container = st.empty()
     hp_percent = max(0.0, float(e["hp"] / e["max_hp"]))
-    st.progress(hp_percent, text=f"HP da Galinha: {e['hp']}/{e['max_hp']} | Dano: ⚔️ {e['atk']}")
+    progress_container.progress(hp_percent, text=f"HP da Galinha: {e['hp']}/{e['max_hp']} | Dano: ⚔️ {e['atk']}")
 
     # Botão de Atacar
     if st.button("🗡️ Atacar Galinha", type="primary", use_container_width=True):
-        attack()
+        attack(progress_container)
         st.rerun()
 
-    # AVISO LOGO ABAIXO DO BOTÃO DE ATACAR
+    # AVISO DE DROP COM TEMPO LIMITADO (5 SEGUNDOS)
     if st.session_state.new_weapon_notice:
-        st.info(st.session_state.new_weapon_notice)
+        notice_container = st.empty()
+        notice_container.info(st.session_state.new_weapon_notice)
+        time.sleep(5)  # Espera 5 segundos exibindo
+        notice_container.empty()  # Apaga o aviso da tela
+        st.session_state.new_weapon_notice = None
 
 with tab_upgrades:
     st.subheader("🛠️ Melhorias de Atributos")
