@@ -1,2 +1,2 @@
-# Chicken-RPG
-Mate galinhas
+# Game Miner
+Minere
